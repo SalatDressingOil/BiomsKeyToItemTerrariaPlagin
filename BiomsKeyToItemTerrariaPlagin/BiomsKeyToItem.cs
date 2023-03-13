@@ -30,6 +30,7 @@ namespace YourPluginNamespace
             Commands.ChatCommands.Add(new Command(BiomKeyToItemBiomChest, "key")
             {
                 AllowServer = false,
+                HelpText = "Заменяет ключи биомов в инвентаре на оружие из сундука биомов, работает только после убийства плантеры"
             });
         }
 
