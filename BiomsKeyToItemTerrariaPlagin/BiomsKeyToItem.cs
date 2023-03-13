@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading.Tasks;
 using Terraria;
@@ -17,7 +18,7 @@ namespace YourPluginNamespace
     {
         public override string Name => "BiomsKeyToItemTerrariaPlagin";
         public override string Author => "Синий Ёж";
-        public override string Description => "Добавляет команду которая выдаёт оружие из биомного сундука в обмен на ключ этого сундука ";
+        public override string Description => "Добавляет команду которая выдаёт оружие из биомного сундука в обмен на ключ этого сундука";
         public override Version Version => new Version(1, 0, 0);
 
         public BiomsKeyToItemTerrariaPlagin(Main game) : base(game)
@@ -27,10 +28,6 @@ namespace YourPluginNamespace
         public override void Initialize()
         {
             Commands.ChatCommands.Add(new Command(BiomKeyToItemBiomChest, "key")
-            {
-                AllowServer = false,
-            });
-            Commands.ChatCommands.Add(new Command(keyd, "keyd")
             {
                 AllowServer = false,
             });
@@ -44,25 +41,6 @@ namespace YourPluginNamespace
             }
             base.Dispose(disposing);
         }
-        private void keyd(CommandArgs args)
-        {
-
-            TSPlayer tsPlayer = args.Player;
-            Player player = Main.player[tsPlayer.Index];
-            player.inventory[0].stack--;
-            args.Player.SendSuccessMessage(Main.ServerSideCharacter.ToString());
-            NetMessage.SendData((int)PacketTypes.PlayerSlot, -1, -1, null, tsPlayer.Index, 0, tsPlayer.TPlayer.inventory[0].prefix);
-        }
-
-        public Dictionary<int, int> keys = new Dictionary<int, int>()// Словарь для хранения id ключей и соответствующих предметов
-        {
-            {ItemID.JungleKey, ItemID.PiranhaGun},
-            {ItemID.CorruptionKey, ItemID.ScourgeoftheCorruptor},
-            {ItemID.CrimsonKey, ItemID.VampireKnives},
-            {ItemID.HallowedKey, ItemID.RainbowGun},
-            {ItemID.FrozenKey, ItemID.StaffoftheFrostHydra},
-            {4714, 4607} // id пустынного ключа и посоха пустынного тигра которых нет в ItemID
-        };
         private void BiomKeyToItemBiomChest(CommandArgs args)
         {
             try
@@ -80,55 +58,67 @@ namespace YourPluginNamespace
                     tsPlayer.SendErrorMessage("Вы мертвы!");
                     return;
                 }
-                // Подсчет количества каждого ключа в инвентаре игрока и выдача предметов
-                foreach (int key in keys.Keys)
+                int CountNoneType = 0;
+                bool flag = false;
+                KeyItem KeyItem = new KeyItem();
+                for (int i = 0; i < player.inventory.Length - 9; i++)// -9 значит, что мы не учитываем слоты боеприпасов и слот в курсоре
                 {
-                    int countKey = 0;
-                    int indexKey = -1;
-                    int CountNoneType = 0;
-                    for (int i = 0; i < player.inventory.Length-9; i++)// -9 значит, что мы не учитываем слоты боеприпасов и слот в курсоре
+                    foreach (int key in KeyItem.dict.Keys)
                     {
-                        tsPlayer.SendSuccessMessage($"[i:{player.inventory[i].type}]");
                         if (player.inventory[i].type == key)
                         {
-                            countKey += player.inventory[i].stack;
-                            if (indexKey == -1)
-                                indexKey = i;
-                        }
-                        else if (player.inventory[i].type == ItemID.None)
-                        {
-                            CountNoneType++; //пустые слоты
+                            flag = true;
+                            KeyItem.dict[key].countKey += player.inventory[i].stack;
+                            if (KeyItem.dict[key].indexKey == -1)
+                                KeyItem.dict[key].indexKey = i;
                         }
                     }
-                    if (countKey > 0)
+                    if (player.inventory[i].type == ItemID.None)
                     {
-                        if (CountNoneType > 0)
+                        CountNoneType++;
+                    }
+                }
+                if (!flag)
+                {
+                    tsPlayer.SendErrorMessage($"Ключи биомов не найдены.");
+                    return;
+                }
+                string Out = "";
+                foreach (int key in KeyItem.dict.Keys)
+                {
+                    //tsPlayer.SendSuccessMessage($"{CountNoneType}");
+                    if (CountNoneType > 0)
+                    {
+                        if (KeyItem.dict[key].indexKey != -1)
                         {
-                            tsPlayer.GiveItem(keys[key], 1);
-                            tsPlayer.SendSuccessMessage($"Получен предмет.");
-                            if (player.inventory[indexKey].stack > 1)
+                            flag = true;
+                            tsPlayer.GiveItem(KeyItem.dict[key].itemID, 1);
+                            Out += $"[i:{KeyItem.dict[key].itemID}]";
+                            if (player.inventory[KeyItem.dict[key].indexKey].stack > 1)
                             {
-                                player.inventory[indexKey].stack--;
+                                player.inventory[KeyItem.dict[key].indexKey].stack--;
                             }
                             else
                             {
-                                player.inventory[indexKey] = new Item();
+                                player.inventory[KeyItem.dict[key].indexKey] = new Item();
                             }
-                            NetMessage.SendData((int)PacketTypes.PlayerSlot, -1, -1, null, tsPlayer.Index, indexKey, tsPlayer.TPlayer.inventory[indexKey].prefix);
-                            //NetMessage.SendData((int)PacketTypes.PlayerSlot, tsPlayer.Index, -1, null, tsPlayer.Index, 0, player.inventory[indexKey].prefix);
-                            break;
-                        }
-                        else
-                        {
-                            tsPlayer.SendErrorMessage("У вас недостаточно свободных слотов в инвентаре для получения предмета.");
-                            break;
+                            NetMessage.SendData((int)PacketTypes.PlayerSlot, -1, -1, null, tsPlayer.Index, KeyItem.dict[key].indexKey, tsPlayer.TPlayer.inventory[KeyItem.dict[key].indexKey].prefix);
+                            CountNoneType--;
                         }
                     }
+                    else
+                    {
+                        tsPlayer.SendErrorMessage("Недостаточно свободных слотов в инвентаре для получения всех предметов.");
+                        break;
+                    }
+                }
+                if (Out != "")
+                {
+                    tsPlayer.SendSuccessMessage($"Полученные предметы:{Out}");
                 }
             }
             catch (Exception ex)
             {
-                // Выводим сообщение об ошибке игроку
                 args.Player.SendErrorMessage($"Произошла ошибка: {ex.Message}");
             }
         }

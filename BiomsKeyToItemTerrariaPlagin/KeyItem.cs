@@ -1,31 +1,36 @@
 ﻿using System.Collections.Generic;
 using Terraria.ID;
 using TShockAPI.Handlers.NetModules;
+using System.Collections.Generic;
 
 public class KeyItem
 {
-    public int Id { get; set; }
-    public int IdItemChest { get; set; }
-    public int Count { get; set; }
-    public int Index { get; set; }
+    public Dictionary<int, KeyItemObj> dict;
+    public KeyItem()
+    {
+        dict = new Dictionary<int, KeyItemObj>()
+        {
+            {ItemID.JungleKey, new KeyItemObj(ItemID.PiranhaGun, 0, -1)},
+            {ItemID.CorruptionKey, new KeyItemObj(ItemID.ScourgeoftheCorruptor, 1, -1)},
+            {ItemID.CrimsonKey, new KeyItemObj(ItemID.VampireKnives, 0, -1)},
+            {ItemID.HallowedKey, new KeyItemObj(ItemID.RainbowGun, 0, -1)},
+            {ItemID.FrozenKey, new KeyItemObj(ItemID.StaffoftheFrostHydra, 0, -1)},
+            {4714, new KeyItemObj(4607, 0, -1)} // id пустынного ключа и посоха пустынного тигра которых нет в ItemID
+        };
+    }
 
 }
 
-//ItemID.JungleKey, ItemID.CorruptionKey, ItemID.CrimsonKey, ItemID.HallowedKey, ItemID.FrozenKey, 4714
-
-public class KeyItemsList
+public class KeyItemObj
 {
-    private readonly List<KeyItem> _keyItems = new List<KeyItem>();
+    public int itemID;
+    public int countKey;
+    public int indexKey;
 
-    public KeyItemsList(Dictionary<int, int> keys)
+    public KeyItemObj(int itemID, int countKey, int indexKey)
     {
-        foreach (var key in keys.Keys)
-        {
-            _keyItems.Add(new KeyItem { Id = key });
-        }
-    }
-    public List<KeyItem> GetKeyItems()
-    {
-        return _keyItems;
+        this.itemID = itemID;
+        this.countKey = countKey;
+        this.indexKey = indexKey;
     }
 }
